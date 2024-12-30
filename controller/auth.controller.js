@@ -5,7 +5,6 @@ import bcrypt from "bcryptjs";
 export const registerUser = async (req, res) => {
   const { name, email, password } = req.body;
 
-  // Validate request body
   if (!name || !email || !password) {
     return res.status(400).json({ message: "All fields are required." });
   }
@@ -34,20 +33,46 @@ export const registerUser = async (req, res) => {
   }
 };
 
+// Login a user with name and password
+export const loginUser = async (req, res) => {
+  const { name, password } = req.body;
+
+  if (!name || !password) {
+    return res.status(400).json({ message: "Name and password are required." });
+  }
+
+  try {
+    const user = await User.findOne({ name });
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid password." });
+    }
+
+    res.status(200).json({
+      message: "Login successful.",
+      user: { id: user._id, name: user.name, email: user.email },
+    });
+  } catch (error) {
+    console.error("Error during login:", error);
+    res.status(500).json({ message: "Server error during login.", error: error.message });
+  }
+};
+
 // Google Authentication
 export const googleAuth = async (req, res) => {
   const { name, email, googleId } = req.body;
 
-  // Validate request body
   if (!name || !email || !googleId) {
     return res.status(400).json({ message: "Invalid request. Missing required fields." });
   }
 
   try {
-    // Check if the user already exists
     let user = await User.findOne({ email });
     if (!user) {
-      // Create a new user for Google authentication
       user = new User({ name, email, googleId });
       await user.save();
     }
