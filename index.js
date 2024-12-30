@@ -1,6 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import cors from "cors";
 
 // Load environment variables
 dotenv.config();
@@ -8,7 +9,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware for parsing JSON
+// Middleware
+app.use(cors());
 app.use(express.json());
 
 // Import authentication routes
@@ -20,11 +22,6 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("🚀 MongoDB Connected");
-    // Start the server
-    app.listen(PORT, () => {
-      console.log(`🌟 Server is running on port ${PORT}`);
-    });
+    app.listen(PORT, () => console.log(`🌟 Server running on port ${PORT}`));
   })
-  .catch((err) => {
-    console.error("❌ MongoDB Connection Error:", err.message);
-  });
+  .catch((err) => console.error("❌ MongoDB Connection Error:", err.message));
