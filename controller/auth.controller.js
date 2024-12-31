@@ -61,28 +61,3 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ message: "Server error during login.", error: error.message });
   }
 };
-
-// Google Authentication
-export const googleAuth = async (req, res) => {
-  const { name, email, googleId } = req.body;
-
-  if (!name || !email || !googleId) {
-    return res.status(400).json({ message: "Invalid request. Missing required fields." });
-  }
-
-  try {
-    let user = await User.findOne({ email });
-    if (!user) {
-      user = new User({ name, email, googleId });
-      await user.save();
-    }
-
-    res.status(200).json({
-      message: "User authenticated successfully.",
-      user: { id: user._id, name: user.name, email: user.email },
-    });
-  } catch (error) {
-    console.error("Error during Google authentication:", error);
-    res.status(500).json({ message: "Server error during Google authentication.", error: error.message });
-  }
-};
