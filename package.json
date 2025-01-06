@@ -2,12 +2,12 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "MERN backend for Google Authentication",
-  "main": "server.js",
+  "main": "index.js",
   "type": "module",
 "scripts": {
-  "dev": "nodemon api/server.js",
-  "start": "node api/server.js"
-},
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
