@@ -1,6 +1,5 @@
 import express from "express";
 import {
-  createRoom,
   updateRoom,
   deleteRoom,
   getAllRooms,
@@ -17,7 +16,7 @@ const upload = multer({
 
 const router = express.Router();
 
-router.post("/rooms", createRoom);
+router.post("/rooms", createRooms);
 router.put("/rooms/:id", updateRoom);
 router.delete("/rooms/:id", deleteRoom);
 router.get("/rooms", getAllRooms);

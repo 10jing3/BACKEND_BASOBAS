@@ -2,56 +2,27 @@ import Room from "../models/room.model.js";
 import mongoose from "mongoose";
 import cloudinary from "./../config/cloudinary.config.js";
 
-export const createRoom = async (req, res) => {
-  try {
-    const { name, price, size, amenities, description, roomImage } = req.body;
-
-    // Check if the room already exists
-    const existingRoom = await Room.findOne({ name });
-    if (existingRoom) {
-      return res
-        .status(400)
-        .json({ message: "Room with this name already exists" });
-    }
-
-    // Create a new room
-    const newRoom = new Room({
-      name,
-      price,
-      size,
-      amenities,
-      description,
-      roomImage,
-    });
-
-    // Save the room to the database
-    await newRoom.save();
-
-    res
-      .status(201)
-      .json({ message: "Room created successfully", room: newRoom });
-  } catch (error) {
-    console.error("Error creating room:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
 
 // Update a room
 export const updateRoom = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, price, size, amenities, description, roomImage, available } =
-      req.body;
+    const { name, price, roomCategory, contactNumber, location, size, amenities, description } = req.body;
 
     // Validate the room ID
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid room ID" });
     }
 
+    // Ensure all required fields are provided (you can adjust this as per your need)
+    if (!name || !price || !roomCategory || !contactNumber || !location || !size || !amenities || !description) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
     // Find the room by ID and update it
     const updatedRoom = await Room.findByIdAndUpdate(
       id,
-      { name, price, size, amenities, description, roomImage, available },
+      { name, price, roomCategory, contactNumber, location, size, amenities, description },
       { new: true } // Return the updated room
     );
 
@@ -59,9 +30,10 @@ export const updateRoom = async (req, res) => {
       return res.status(404).json({ message: "Room not found" });
     }
 
-    res
-      .status(200)
-      .json({ message: "Room updated successfully", room: updatedRoom });
+    res.status(200).json({
+      message: "Room updated successfully",
+      room: updatedRoom,
+    });
   } catch (error) {
     console.error("Error updating room:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -129,7 +101,7 @@ export const getRoomById = async (req, res) => {
 
 export const createRooms = async (req, res) => {
   try {
-    const { name, price, size, amenities, description } = req.body;
+    const {  name, price, roomCategory, contactNumber,location, size, amenities, description,} = req.body;
     const files = req.files;
 
     // Check if room already exists
@@ -161,6 +133,9 @@ export const createRooms = async (req, res) => {
     const newRoom = new Room({
       name,
       price,
+      roomCategory,
+      contactNumber,
+      location,
       size,
       amenities,
       description,

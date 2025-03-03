@@ -38,6 +38,12 @@ const roomSchema = new mongoose.Schema(
     description: {
       type: String,
     },
+    roomCategory: {
+      type: String,
+    },
+    contactNumber: {
+      type: String,
+    },
   },
   { timestamps: true }
 );
