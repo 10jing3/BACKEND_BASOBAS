@@ -3,42 +3,59 @@ import mongoose from "mongoose";
 import cloudinary from "./../config/cloudinary.config.js";
 
 
-// Update a room
+// // Update a room
 export const updateRoom = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, price, roomCategory, contactNumber, location, size, amenities, description } = req.body;
+    const { name, price, location, amenities, available, description, roomCategory, contactNumber } = req.body;
+    const files = req.files;
 
     // Validate the room ID
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid room ID" });
     }
 
-    // Ensure all required fields are provided (you can adjust this as per your need)
-    if (!name || !price || !roomCategory || !contactNumber || !location || !size || !amenities || !description) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
     // Find the room by ID and update it
-    const updatedRoom = await Room.findByIdAndUpdate(
-      id,
-      { name, price, roomCategory, contactNumber, location, size, amenities, description },
-      { new: true } // Return the updated room
-    );
-
-    if (!updatedRoom) {
+    const room = await Room.findById(id);
+    if (!room) {
       return res.status(404).json({ message: "Room not found" });
     }
 
-    res.status(200).json({
-      message: "Room updated successfully",
-      room: updatedRoom,
-    });
+    // Update room details
+    room.name = name || room.name;
+    room.price = price || room.price;
+    room.location = location || room.location;
+    room.amenities = amenities || room.amenities;
+    room.available = available !== undefined ? available : room.available;
+    room.description = description || room.description;
+    room.roomCategory = roomCategory || room.roomCategory;
+    room.contactNumber = contactNumber || room.contactNumber;
+
+    // If new images are uploaded, handle image update
+    if (files && files.length > 0) {
+      // Upload images to Cloudinary
+      const imageUrls = [];
+      for (const file of files) {
+        const result = await cloudinary.uploader.upload(
+          `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
+          { folder: "room_images" }
+        );
+        imageUrls.push(result.secure_url);
+      }
+      room.roomImages = imageUrls;
+    }
+
+    // Save updated room
+    await room.save();
+
+    res.status(200).json({ message: "Room updated successfully", room });
   } catch (error) {
     console.error("Error updating room:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
 
 // Delete a room
 export const deleteRoom = async (req, res) => {
