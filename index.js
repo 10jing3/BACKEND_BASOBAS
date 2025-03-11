@@ -6,6 +6,9 @@ import authRoutes from "./routes/auth.route.js";
 import roomRoutes from "./routes/room.route.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+
+
+
 dotenv.config();
 
 mongoose
@@ -33,9 +36,11 @@ app.listen(3000, () => {
   console.log("Server listening on port 3000");
 });
 
+
 app.use("/api/user", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/room", roomRoutes);
+
 
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
