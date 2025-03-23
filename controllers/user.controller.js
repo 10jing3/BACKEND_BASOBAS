@@ -38,15 +38,20 @@ export const updateUser = async (req, res, next) => {
 
 // delete user
 
-export const deleteUser = async (req, res, next) => {
-  if (req.user.id !== req.params.id) {
-    return next(errorHandler(401, "You can delete only your account!"));
-  }
+export const deleteUser = async (req, res) => {
   try {
+    if (req.user.id !== req.params.id && req.user.role !== "admin") {
+      return res
+        .status(403)
+        .json({ message: "You are not authorized to delete this account." });
+    }
+
     await User.findByIdAndDelete(req.params.id);
-    res.status(200).json("User has been deleted...");
+    res.status(200).json({ message: "User has been deleted successfully." });
   } catch (error) {
-    next(error);
+    res
+      .status(500)
+      .json({ message: "Error deleting user", error: error.message });
   }
 };
 
