@@ -147,11 +147,13 @@ export const createRooms = async (req, res) => {
     } = req.body;
 
     let parsedCoordinates = coordinates;
-
     if (typeof coordinates === "string") {
       parsedCoordinates = JSON.parse(coordinates);
     }
+
     const files = req.files;
+    const roomImages = files?.roomImages || [];
+    const vrImages = files?.vrImages || [];
 
     // Check if room already exists
     const existingRoom = await Room.findOne({ name });
@@ -161,21 +163,29 @@ export const createRooms = async (req, res) => {
         .json({ message: "Room with this name already exists" });
     }
 
-    // Check if files are uploaded
-    if (!files || files.length === 0) {
-      return res.status(400).json({ message: "No images uploaded" });
+    // Check if normal images are uploaded
+    if (!roomImages.length) {
+      return res.status(400).json({ message: "No room images uploaded" });
     }
 
-    // Upload images to Cloudinary
-    const imageUrls = [];
-    for (const file of files) {
+    // Upload roomImages to Cloudinary
+    const roomImageUrls = [];
+    for (const file of roomImages) {
       const result = await cloudinary.uploader.upload(
         `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
-        {
-          folder: "room_images",
-        }
+        { folder: "room_images" }
       );
-      imageUrls.push(result.secure_url);
+      roomImageUrls.push(result.secure_url);
+    }
+
+    // Upload vrImages to Cloudinary (if provided)
+    const vrImageUrls = [];
+    for (const file of vrImages) {
+      const result = await cloudinary.uploader.upload(
+        `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
+        { folder: "vr_room_images" }
+      );
+      vrImageUrls.push(result.secure_url);
     }
 
     // Save room to database
@@ -190,7 +200,8 @@ export const createRooms = async (req, res) => {
         lat: parsedCoordinates.lat,
         lng: parsedCoordinates.lng,
       },
-      roomImages: imageUrls, // Use "roomImages" for multiple images
+      roomImages: roomImageUrls,
+      VRImages: vrImageUrls,
       owner,
     });
 
