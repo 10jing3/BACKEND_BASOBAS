@@ -24,7 +24,14 @@ router.delete("/rooms/:id", deleteRoom);
 router.get("/rooms", getAllRooms);
 router.get("/rooms/:id", getRoomById);
 router
-  .post("/upload", upload.array("roomImages", 5), createRooms)
+  .post(
+    "/upload",
+    upload.fields([
+      { name: "roomImages", maxCount: 5 },
+      { name: "vrImages", maxCount: 5 },
+    ]),
+    createRooms
+  )
   .get("/get-room-by-owner/:ownerId", getRoomsByOwner);
 
 export default router;
