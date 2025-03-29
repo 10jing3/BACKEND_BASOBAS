@@ -43,6 +43,9 @@ const roomSchema = new mongoose.Schema(
     roomImages: {
       type: [String],
     },
+    vrImages: {
+      type: [String],
+    },
     description: {
       type: String,
     },
