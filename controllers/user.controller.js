@@ -12,23 +12,40 @@ export const updateUser = async (req, res, next) => {
   if (req.user.id !== req.params.id) {
     return next(errorHandler(401, "You can update only your account!"));
   }
+
   try {
+    // If password is being updated, hash it
     if (req.body.password) {
       req.body.password = bcryptjs.hashSync(req.body.password, 10);
     }
 
+    const updateFields = {
+      username: req.body.username,
+      email: req.body.email,
+      password: req.body.password,
+      profilePicture: req.body.profilePicture,
+      phone:req.body.phone,
+      gender: req.body.gender,
+      budget: req.body.budget,
+      cleanliness: req.body.cleanliness,
+      isSmoker: req.body.isSmoker,
+      isPetFriendly: req.body.isPetFriendly,
+      wakeUpTime: req.body.wakeUpTime,
+      sleepTime: req.body.sleepTime,
+      preferredRoommateGender: req.body.preferredRoommateGender,
+      hobbies: req.body.hobbies,
+    };
+
+    Object.keys(updateFields).forEach(
+      (key) => updateFields[key] === undefined && delete updateFields[key]
+    );
+
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      {
-        $set: {
-          username: req.body.username,
-          email: req.body.email,
-          password: req.body.password,
-          profilePicture: req.body.profilePicture,
-        },
-      },
+      { $set: updateFields },
       { new: true }
     );
+
     const { password, ...rest } = updatedUser._doc;
     res.status(200).json(rest);
   } catch (error) {
