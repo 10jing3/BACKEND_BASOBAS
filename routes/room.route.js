@@ -19,7 +19,14 @@ const upload = multer({
 const router = express.Router();
 
 router.post("/rooms", createRoom);
-router.put("/rooms/:id", updateRoom);
+router.put(
+  "/updateroom/:id",
+  upload.fields([
+    { name: "roomImages", maxCount: 5 },
+    { name: "vrImages", maxCount: 5 },
+  ]),
+  updateRoom
+);
 router.delete("/rooms/:id", deleteRoom);
 router.get("/rooms", getAllRooms);
 router.get("/rooms/:id", getRoomById);
