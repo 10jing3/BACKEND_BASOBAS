@@ -21,9 +21,44 @@ const userSchema = new mongoose.Schema(
       default:
         "https://img.freepik.com/premium-vector/man-avatar-profile-picture-vector-illustration_268834-538.jpg",
     },
+    phone:{
+      type:String
+    },
     role: {
       type: String,
       default: "user",
+    },
+    gender: {
+      type: String,
+      enum: ["male", "female", "other"],
+    },
+    budget: {
+      type: Number,
+    },
+    cleanliness: {
+      type: Number,
+      min: 1,
+      max: 5,
+    },
+    isSmoker: {
+      type: Boolean,
+    },
+    isPetFriendly: {
+      type: Boolean,
+    },
+    wakeUpTime: {
+      type: String,
+    },
+    sleepTime: {
+      type: String,
+    },
+    preferredRoommateGender: {
+      type: String,
+      enum: ["male", "female", "any"],
+      default: "any",
+    },
+    hobbies: {
+      type: [String],
     },
   },
   { timestamps: true }
