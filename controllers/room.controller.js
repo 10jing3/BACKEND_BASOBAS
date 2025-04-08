@@ -46,6 +46,10 @@ export const updateRoom = async (req, res) => {
       return res.status(400).json({ message: "Invalid room ID" });
     }
 
+    const amenitiesArray = amenities
+      ? amenities.split(",").map((item) => item.trim())
+      : existingRoom.amenities;
+
     const existingRoom = await Room.findById(id);
     if (!existingRoom) {
       return res.status(404).json({ message: "Room not found" });
@@ -55,12 +59,12 @@ export const updateRoom = async (req, res) => {
       id,
       {
         name: name || existingRoom.name,
-        price: price || existingRoom.price,
-        size: size || existingRoom.size,
-        amenities: amenities || existingRoom.amenities,
+        price: Number(price) || existingRoom.price,
+        size: Number(size) || existingRoom.size,
         description: description || existingRoom.description,
+        amenities: amenitiesArray,
+        available: available === "true" || available === true, // handles boolean as string
         roomImages: roomImages?.length ? roomImages : existingRoom.roomImages, // Preserve existing images if none provided
-        available: available !== undefined ? available : existingRoom.available,
       },
       { new: true, runValidators: true }
     );
