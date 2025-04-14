@@ -2,82 +2,130 @@ import Room from "../models/room.model.js";
 import mongoose from "mongoose";
 import cloudinary from "./../config/cloudinary.config.js";
 
-export const createRoom = async (req, res) => {
-  try {
-    const { name, price, size, amenities, description, roomImage } = req.body;
-
-    // Check if the room already exists
-    const existingRoom = await Room.findOne({ name });
-    if (existingRoom) {
-      return res
-        .status(400)
-        .json({ message: "Room with this name already exists" });
-    }
-
-    // Create a new room
-    const newRoom = new Room({
-      name,
-      price,
-      size,
-      amenities,
-      description,
-      roomImage,
-    });
-
-    // Save the room to the database
-    await newRoom.save();
-
-    res
-      .status(201)
-      .json({ message: "Room created successfully", room: newRoom });
-  } catch (error) {
-    console.error("Error creating room:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-
 export const updateRoom = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, price, size, amenities, description, available, roomImages } =
-      req.body;
+    const {
+      name,
+      price,
+      size,
+      category,
+      bedrooms,
+      bathrooms,
+      kitchen,
+      faced,
+      parking,
+      balcony,
+      amenities,
+      description,
+      location,
+      coordinates,
+      available,
+      owner,
+      keepExistingImages = 'true', // Default to keeping existing images
+      keepExistingVRImages = 'true'
+    } = req.body;
 
+    const files = req.files || {};
+    const newRoomImages = files['roomImages'] || [];
+    const newVRImages = files['vrImages'] || [];
+
+    // Validate room ID
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid room ID" });
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid room ID format" 
+      });
     }
-
-    const amenitiesArray = amenities
-      ? amenities.split(",").map((item) => item.trim())
-      : existingRoom.amenities;
 
     const existingRoom = await Room.findById(id);
     if (!existingRoom) {
-      return res.status(404).json({ message: "Room not found" });
+      return res.status(404).json({ 
+        success: false,
+        message: "Room not found" 
+      });
     }
 
+    // Process image uploads (only if new files are provided)
+    const uploadToCloudinary = async (file, folder) => {
+      const result = await cloudinary.uploader.upload(
+        `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
+        { folder }
+      );
+      return result.secure_url;
+    };
+
+    // Only upload new images if provided
+    let newRoomImageUrls = [];
+    if (newRoomImages.length > 0) {
+      newRoomImageUrls = await Promise.all(
+        newRoomImages.map(file => uploadToCloudinary(file, "room_images"))
+      );
+    }
+
+    let newVRImageUrls = [];
+    if (newVRImages.length > 0) {
+      newVRImageUrls = await Promise.all(
+        newVRImages.map(file => uploadToCloudinary(file, "vr_room_images"))
+      );
+    }
+
+    // Prepare image arrays (keep old unless explicitly replacing)
+    const finalRoomImages = [
+      ...(keepExistingImages === 'true' ? existingRoom.roomImages : []),
+      ...newRoomImageUrls
+    ];
+
+    const finalVRImages = [
+      ...(keepExistingVRImages === 'true' ? existingRoom.vrImages : []),
+      ...newVRImageUrls
+    ];
+
+    // Update document
     const updatedRoom = await Room.findByIdAndUpdate(
       id,
       {
         name: name || existingRoom.name,
         price: Number(price) || existingRoom.price,
         size: Number(size) || existingRoom.size,
+        category: category || existingRoom.category,
+        bedrooms: bedrooms || existingRoom.bedrooms,
+        bathrooms: bathrooms || existingRoom.bathrooms,
+        kitchen: kitchen || existingRoom.kitchen,
+        faced: faced || existingRoom.faced,
+        parking: parking || existingRoom.parking,
+        balcony: balcony || existingRoom.balcony,
+        amenities: Array.isArray(amenities) 
+          ? amenities 
+          : (amenities ? amenities.split(',').map(item => item.trim()) : existingRoom.amenities),
         description: description || existingRoom.description,
-        amenities: amenitiesArray,
-        available: available === "true" || available === true, // handles boolean as string
-        roomImages: roomImages?.length ? roomImages : existingRoom.roomImages, // Preserve existing images if none provided
+        location: location || existingRoom.location,
+        coordinates: coordinates ? {
+          lat: parseFloat(coordinates.lat) || existingRoom.coordinates.lat,
+          lng: parseFloat(coordinates.lng) || existingRoom.coordinates.lng,
+        } : existingRoom.coordinates,
+        roomImages: finalRoomImages,
+        vrImages: finalVRImages,
+        available: available !== undefined ? available === "true" || available === true : existingRoom.available,
+        owner: owner ? new mongoose.Types.ObjectId(owner) : existingRoom.owner
       },
       { new: true, runValidators: true }
     );
 
-    res
-      .status(200)
-      .json({ message: "Room updated successfully", room: updatedRoom });
+    res.status(200).json({
+      success: true,
+      message: "Room updated successfully",
+      data: updatedRoom
+    });
+
   } catch (error) {
-    console.error("Error updating room:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error in updateRoom:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error"
+    });
   }
 };
-
 // Delete a room
 export const deleteRoom = async (req, res) => {
   try {
@@ -143,95 +191,324 @@ export const createRooms = async (req, res) => {
       name,
       price,
       size,
+      category,
+      bedrooms,
+      bathrooms,
+      kitchen,
+      faced,
+      parking,
+      balcony,
       amenities,
       description,
       location,
-      owner,
       coordinates,
+      owner
     } = req.body;
 
-    let parsedCoordinates = coordinates;
-    if (typeof coordinates === "string") {
-      parsedCoordinates = JSON.parse(coordinates);
+    console.log(req.body)
+    console.log(req.files)
+
+    // Validate required fields
+    const requiredFields = {
+      name: "Name",
+      price: "Price",
+      size: "Size",
+      category: "Category",
+      bedrooms: "Bedrooms",
+      bathrooms: "Bathrooms",
+      owner: "Owner"
+    };
+
+    const missingFields = Object.entries(requiredFields)
+      .filter(([field]) => !req.body[field])
+      .map(([_, name]) => name);
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing required fields: ${missingFields.join(', ')}`,
+        missingFields
+      });
     }
 
-    const files = req.files;
-    const roomImages = files?.roomImages || [];
-    const vrImages = files?.vrImages || [];
-
-    // Check if room already exists
-    const existingRoom = await Room.findOne({ name });
-    if (existingRoom) {
-      return res
-        .status(400)
-        .json({ message: "Room with this name already exists" });
+    // Validate owner ID
+    if (!mongoose.Types.ObjectId.isValid(owner)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid owner ID format" 
+      });
     }
 
-    // Check if normal images are uploaded
-    if (!roomImages.length) {
-      return res.status(400).json({ message: "No room images uploaded" });
+    // Parse and validate coordinates
+    let parsedCoordinates = { lat: 0, lng: 0 };
+    if (coordinates) {
+      try {
+        parsedCoordinates = typeof coordinates === 'string' 
+          ? JSON.parse(coordinates) 
+          : coordinates;
+        
+        if (isNaN(parsedCoordinates.lat)) parsedCoordinates.lat = 0;
+        if (isNaN(parsedCoordinates.lng)) parsedCoordinates.lng = 0;
+      } catch (error) {
+        console.error("Error parsing coordinates:", error);
+        // Continue with default coordinates
+      }
     }
 
-    // Upload roomImages to Cloudinary
-    const roomImageUrls = [];
-    for (const file of roomImages) {
-      const result = await cloudinary.uploader.upload(
-        `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
-        { folder: "room_images" }
-      );
-      roomImageUrls.push(result.secure_url);
+    // Handle file uploads
+    const files = req.files || {};
+    const roomImages = files['roomImages'] || [];
+    const vrImages = files['vrImages'] || [];
+    
+    // Validate at least one room image
+    if (!roomImages || roomImages.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: "At least one room image is required" 
+      });
+    }
+    
+    // Upload images to Cloudinary with error handling
+    const uploadToCloudinary = async (file, folder) => {
+      try {
+        const result = await cloudinary.uploader.upload(
+          `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
+          { folder }
+        );
+        return result.secure_url;
+      } catch (error) {
+        console.error(`Error uploading to ${folder}:`, error);
+        throw new Error(`Failed to upload ${folder} image`);
+      }
+    };
+    
+    // Process room images
+    const roomImageUrls = await Promise.all(
+      roomImages.map(file => uploadToCloudinary(file, "room_images"))
+    );
+    
+    // Process VR images (optional)
+    let vrImageUrls = [];
+    if (vrImages.length > 0) {
+      try {
+        vrImageUrls = await Promise.all(
+          vrImages.map(file => uploadToCloudinary(file, "vr_room_images"))
+        );
+      } catch (error) {
+        console.error("VR image upload failed:", error);
+        vrImageUrls = []; // Continue without VR images
+      }
     }
 
-    // Upload vrImages to Cloudinary (if provided)
-    const vrImageUrls = [];
-    for (const file of vrImages) {
-      const result = await cloudinary.uploader.upload(
-        `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
-        { folder: "vr_room_images" }
-      );
-      vrImageUrls.push(result.secure_url);
-    }
-
-    // Save room to database
+    // Create new room document
     const newRoom = new Room({
       name,
-      price,
-      size,
-      amenities,
-      description,
+      price: Number(price),
+      size: Number(size),
+      category,
+      location,
+      bedrooms, // Keep as string since schema expects enum values
+      bathrooms, // Keep as string since schema expects enum values
+      kitchen, // Keep as string since schema expects enum values
+      faced,
+      parking, // Keep as string since schema expects enum values
+      balcony,
+      amenities: Array.isArray(amenities) 
+        ? amenities 
+        : (amenities ? amenities.split(',').map(item => item.trim()) : []),
+      description: description || "",
       location,
       coordinates: {
-        lat: parsedCoordinates.lat,
-        lng: parsedCoordinates.lng,
+        lat: parseFloat(parsedCoordinates.lat) || 0,
+        lng: parseFloat(parsedCoordinates.lng) || 0,
       },
       roomImages: roomImageUrls,
-      VRImages: vrImageUrls,
-      owner,
+      vrImages: vrImageUrls,
+      owner: new mongoose.Types.ObjectId(owner),
     });
 
+    // Save to database
     await newRoom.save();
 
-    res
-      .status(201)
-      .json({ message: "Room created successfully", room: newRoom });
+    // Return success response
+    return res.status(201).json({
+      success: true,
+      message: "Room created successfully",
+      data: newRoom
+    });
+
   } catch (error) {
-    console.error("Error creating room:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error in createRoom:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
 export const getRoomsByOwner = async (req, res) => {
   try {
-    const ownerId = req.params.ownerId; // Get the ownerId from the request parameters
-    const rooms = await Room.find({ owner: ownerId });
+    const ownerId = req.params.ownerId;
 
-    if (!rooms || rooms.length === 0) {
-      return res.status(404).json({ message: "No rooms found for this owner" });
+    // Validate owner ID
+    if (!mongoose.Types.ObjectId.isValid(ownerId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid owner ID format"
+      });
     }
 
-    res.status(200).json(rooms); // Send the rooms as a response
+    // Find rooms with pagination
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const [rooms, total] = await Promise.all([
+      Room.find({ owner: ownerId })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean(),
+      Room.countDocuments({ owner: ownerId })
+    ]);
+
+    if (!rooms || rooms.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No rooms found for this owner",
+        ownerId
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: rooms,
+      pagination: {
+        total,
+        page: Number(page),
+        pages: Math.ceil(total / limit),
+        limit: Number(limit)
+      }
+    });
+
   } catch (error) {
-    console.error("Error fetching rooms by owner:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Error in getRoomsByOwner:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
+export const SearchRoom = async (req, res) => {
+  try {
+    const { price, location } = req.query;
+
+    const searchCriteria = {};
+
+    if (price) {
+      searchCriteria.price = { $lte: parseFloat(price) };
+    }
+
+    if (location) {
+      searchCriteria.location = { $regex: location, $options: "i" };
+    }
+
+    console.log("Search Criteria:", searchCriteria);
+
+    const rooms = await Room.find(searchCriteria);
+
+    res.status(200).json({ success: true, rooms });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const updateRoomStatus = async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+    console.log("Params:" , req.params);
+
+    const { available } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid room ID" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    const updatedRoom = await Room.findByIdAndUpdate(
+      id,
+      {
+        available,
+        bookedBy: userId
+      },
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!updatedRoom) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    return res.status(200).json({
+      message: "Room status updated successfully",
+      room: updatedRoom
+    });
+
+  } catch (error) {
+    console.error("Error updating room status:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+export const getRoomsBookedByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Validate user ID
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid user ID format" 
+      });
+    }
+
+    // Find rooms where bookedBy matches the user ID
+    const bookedRooms = await Room.find({ 
+      bookedBy: new mongoose.Types.ObjectId(userId) 
+    })
+    .populate('bookedBy', 'name email profilePicture') // Include user details
+    .populate('owner', 'name email') // Include owner details
+    .sort({ updatedAt: -1 }); // Sort by most recently booked first
+
+    if (!bookedRooms || bookedRooms.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No rooms booked by this user",
+        data: []
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Successfully retrieved booked rooms",
+      count: bookedRooms.length,
+      data: bookedRooms
+    });
+
+  } catch (error) {
+    console.error("Error fetching booked rooms:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
