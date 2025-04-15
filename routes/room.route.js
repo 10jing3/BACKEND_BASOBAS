@@ -1,12 +1,14 @@
 import express from "express";
 import {
-  createRoom,
   updateRoom,
   deleteRoom,
   getAllRooms,
   getRoomById,
   createRooms,
   getRoomsByOwner,
+  SearchRoom,
+  updateRoomStatus,
+  getRoomsBookedByUser,
 } from "../controllers/room.controller.js";
 import multer from "multer";
 
@@ -18,7 +20,6 @@ const upload = multer({
 
 const router = express.Router();
 
-router.post("/rooms", createRoom);
 router.put(
   "/updateroom/:id",
   upload.fields([
@@ -39,6 +40,9 @@ router
     ]),
     createRooms
   )
-  .get("/get-room-by-owner/:ownerId", getRoomsByOwner);
+  .get("/get-room-by-owner/:ownerId", getRoomsByOwner)
+  .get("/search", SearchRoom)
+  .put("/update-status/:id/:userId", updateRoomStatus)
+  .get("/getbooked/:userId", getRoomsBookedByUser)
 
 export default router;
