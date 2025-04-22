@@ -1,6 +1,8 @@
 import User from "../models/user.model.js";
+import Room from "../models/room.model.js"
 import { errorHandler } from "../utils/error.js";
 import bcryptjs from "bcryptjs";
+import mongoose from "mongoose";
 
 export const test = (req, res) => {
   res.json({
@@ -55,20 +57,51 @@ export const updateUser = async (req, res, next) => {
 
 // delete user
 
+// export const deleteUser = async (req, res) => {
+//   try {
+//     if (req.user.id !== req.params.id && req.user.role !== "admin") {
+//       return res
+//         .status(403)
+//         .json({ message: "You are not authorized to delete this account." });
+//     }
+
+//     await User.findByIdAndDelete(req.params.id);
+//     res.status(200).json({ message: "User has been deleted successfully." });
+//   } catch (error) {
+//     res
+//       .status(500)
+//       .json({ message: "Error deleting user", error: error.message });
+//   }
+// };
+
 export const deleteUser = async (req, res) => {
   try {
-    if (req.user.id !== req.params.id && req.user.role !== "admin") {
+    const userIdToDelete = req.params.id;
+
+    // Authorization check
+    if (req.user.id !== userIdToDelete && req.user.role !== "admin") {
       return res
         .status(403)
         .json({ message: "You are not authorized to delete this account." });
     }
 
-    await User.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: "User has been deleted successfully." });
-  } catch (error) {
+    const deletedUser = await User.findByIdAndDelete(userIdToDelete);
+
+    if (!deletedUser) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Delete all rooms where owner = userIdToDelete
+    await Room.deleteMany({ owner: userIdToDelete });
+
     res
-      .status(500)
-      .json({ message: "Error deleting user", error: error.message });
+      .status(200)
+      .json({ message: "User and their uploaded rooms have been deleted." });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error deleting user and their rooms",
+      error: error.message,
+    });
   }
 };
 
