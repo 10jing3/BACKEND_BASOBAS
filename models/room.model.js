@@ -97,11 +97,36 @@ const roomSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: "Booking",
       },
-
     ],
     bookedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+    reviews: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Review"
+      }
+    ]  
+  },
+  { timestamps: true }
+);
+
+const reviewSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room' },
+
+    comment: {
+      type: String,
+    },
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5,
     },
   },
   { timestamps: true }
@@ -133,7 +158,9 @@ const bookingSchema = new mongoose.Schema(
 );
 
 const Booking = mongoose.model("Booking", bookingSchema);
+const Review = mongoose.model("Review", reviewSchema)
 const Room = mongoose.model("Room", roomSchema);
 
 export default Room;
-export { Booking };
+export { Booking,Review
+ };
