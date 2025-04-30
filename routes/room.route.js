@@ -9,6 +9,8 @@ import {
   SearchRoom,
   updateRoomStatus,
   getRoomsBookedByUser,
+  createReview,
+  getRoomReviews,
 } from "../controllers/room.controller.js";
 import multer from "multer";
 
@@ -44,5 +46,6 @@ router
   .get("/search", SearchRoom)
   .put("/update-status/:id/:userId", updateRoomStatus)
   .get("/getbooked/:userId", getRoomsBookedByUser)
+  .get("/getreviews/:roomId", getRoomReviews).post("/createreview/:roomId", createReview)
 
 export default router;

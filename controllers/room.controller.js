@@ -1,4 +1,4 @@
-import Room from "../models/room.model.js";
+import Room, { Review } from "../models/room.model.js";
 import mongoose from "mongoose";
 import cloudinary from "./../config/cloudinary.config.js";
 
@@ -510,5 +510,64 @@ export const getRoomsBookedByUser = async (req, res) => {
       message: error.message || "Internal server error",
       error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  }
+};
+
+// Create a review
+export const createReview = async (req, res) => {
+  try {
+    const { userId, comment, rating } = req.body;
+    const roomId = req.params.roomId;
+
+    // Ensure userId and roomId are valid ObjectIds
+    if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(roomId)) {
+      return res.status(400).json({ message: "Invalid User or Room ID" });
+    }
+
+    // Create the new review
+    const newReview = new Review({
+      user: userId,  // Assuming the user is referenced by 'user' in the review model
+      room: roomId,  // Assuming room is referenced by 'room' in the review model
+      comment,
+      rating,
+    });
+
+    // Save the review
+    await newReview.save();
+
+    // Optionally, you can push the review to the room's review array (if that's part of your schema)
+    const room = await Room.findById(roomId);
+    room.reviews.push(newReview._id);
+    await room.save();
+
+    return res.status(200).json({ success: true, review: newReview });
+  } catch (err) {
+    console.error("Error creating review:", err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Get all reviews of a room
+export const getRoomReviews = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    // Validate roomId
+    if (!mongoose.Types.ObjectId.isValid(roomId)) {
+      return res.status(400).json({ message: "Invalid Room ID" });
+    }
+
+    // Find the room and populate the reviews
+    const room = await Room.findById(roomId).populate("reviews", "user comment rating");  // Assuming 'reviews' is an array of review IDs
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    // Send the reviews
+    res.status(200).json({ success: true, reviews: room.reviews });
+  } catch (error) {
+    console.error("Error in getRoomReviews:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
