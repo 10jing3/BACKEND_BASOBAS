@@ -1,6 +1,7 @@
 import Room, { Review } from "../models/room.model.js";
-import mongoose from "mongoose";
+import mongoose, { get } from "mongoose";
 import cloudinary from "./../config/cloudinary.config.js";
+import { getUserName } from "./user.controller.js";
 
 export const updateRoom = async (req, res) => {
   try {
@@ -525,8 +526,11 @@ export const createReview = async (req, res) => {
     }
 
     // Create the new review
+    const username = await getUserName(userId);
+    console.log("Username:", username);
     const newReview = new Review({
-      user: userId,  // Assuming the user is referenced by 'user' in the review model
+      user: userId,
+      username,  // Assuming the user is referenced by 'user' in the review model
       room: roomId,  // Assuming room is referenced by 'room' in the review model
       comment,
       rating,
@@ -558,7 +562,10 @@ export const getRoomReviews = async (req, res) => {
     }
 
     // Find the room and populate the reviews
-    const room = await Room.findById(roomId).populate("reviews", "user comment rating");  // Assuming 'reviews' is an array of review IDs
+      const room = await Room.findById(roomId).populate({
+      path: "reviews",
+      select: "user username comment rating ",
+    });
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" });

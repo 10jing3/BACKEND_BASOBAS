@@ -127,7 +127,21 @@ export const getUserById = async (req, res, next) => {
 
     const { password, ...rest } = user._doc;
     res.status(200).json(rest);
+    return user;
   } catch (error) {
     next(error);
   }
 };
+
+export const getUserName = async (_id) =>{
+  return User.findById(_id)
+    .then((user) => {
+      if (!user) {
+        throw new Error("User not found");
+      }
+      return user.username;
+    })
+    .catch((error) => {
+      throw error;
+    });
+} 
