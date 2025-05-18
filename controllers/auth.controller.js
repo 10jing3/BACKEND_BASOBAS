@@ -2,6 +2,13 @@ import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import { errorHandler } from "../utils/error.js";
 import jwt from "jsonwebtoken";
+import sgMail from "@sendgrid/mail";
+import dotenv from "dotenv";
+dotenv.config(); // Make sure this is only called once in your app (typically in app.js or index.js)
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+console.log("SendGrid API Key:", process.env.SENDGRID_API_KEY);
+console.log(process.env.JWT_SECRET);
 
 export const signup = async (req, res, next) => {
   const { username, email, password } = req.body;
@@ -89,4 +96,62 @@ export const google = async (req, res, next) => {
 
 export const signout = (req, res) => {
   res.clearCookie("access_token").status(200).json("Signout success!");
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found." });
+
+    const resetToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+    const msg = {
+      to: email,
+      from: "10jingsherpa@gmail.com", // MUST BE A VERIFIED SENDER
+      subject: "Password Reset Request",
+      html: `<a href="${resetUrl}">Reset Password</a>`,
+    };
+
+    await sgMail.send(msg);
+    res.status(200).json({ message: "Password reset email sent." });
+  } catch (error) {
+    console.error(
+      "SendGrid Error Details:",
+      error.response?.body?.errors || error.message
+    );
+    res
+      .status(500)
+      .json({ message: "Failed to send email. Check server logs." });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+    user.password = hashedPassword;
+
+    if (user.cleanliness > 5) {
+      user.cleanliness = 5;
+    }
+
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successfully." });
+  } catch (error) {
+    console.error("Error resetting password:", error);
+    res.status(500).json({ message: "Failed to reset password." });
+  }
 };
