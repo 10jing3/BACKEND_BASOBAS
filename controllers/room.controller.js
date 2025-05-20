@@ -403,16 +403,30 @@ export const getRoomsByOwner = async (req, res) => {
 
 export const SearchRoom = async (req, res) => {
   try {
-    const { price, location } = req.query;
+    const { price, minBudget, maxBudget, location, bedrooms, category } = req.query;
 
     const searchCriteria = {};
 
-    if (price) {
+    // Price range support
+    if (minBudget && maxBudget) {
+      searchCriteria.price = { $gte: parseFloat(minBudget), $lte: parseFloat(maxBudget) };
+    } else if (price) {
       searchCriteria.price = { $lte: parseFloat(price) };
     }
 
+    // Location (case-insensitive partial match)
     if (location) {
       searchCriteria.location = { $regex: location, $options: "i" };
+    }
+
+    // Bedrooms (exact match)
+    if (bedrooms) {
+      searchCriteria.bedrooms = bedrooms;
+    }
+
+    // Category (exact match)
+    if (category) {
+      searchCriteria.category = category;
     }
 
     console.log("Search Criteria:", searchCriteria);
@@ -425,7 +439,6 @@ export const SearchRoom = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
-
 export const updateRoomStatus = async (req, res) => {
   try {
     const { id, userId } = req.params;
