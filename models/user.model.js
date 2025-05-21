@@ -38,13 +38,15 @@ const userSchema = new mongoose.Schema(
     cleanliness: {
       type: Number,
       min: 1,
-      max: 5,
+      max: 10,
     },
     isSmoker: {
       type: Boolean,
+      default: false,
     },
     isPetFriendly: {
       type: Boolean,
+      default: false,
     },
     wakeUpTime: {
       type: String,

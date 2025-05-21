@@ -16,7 +16,6 @@ export const updateUser = async (req, res, next) => {
   }
 
   try {
-    // If password is being updated, hash it
     if (req.body.password) {
       req.body.password = bcryptjs.hashSync(req.body.password, 10);
     }
@@ -26,7 +25,7 @@ export const updateUser = async (req, res, next) => {
       email: req.body.email,
       password: req.body.password,
       profilePicture: req.body.profilePicture,
-      phone:req.body.phone,
+      phone: req.body.phone,
       gender: req.body.gender,
       budget: req.body.budget,
       cleanliness: req.body.cleanliness,
@@ -49,30 +48,13 @@ export const updateUser = async (req, res, next) => {
     );
 
     const { password, ...rest } = updatedUser._doc;
-    res.status(200).json(rest);
+    res.status(200).json({ success: true, user: rest });
   } catch (error) {
     next(error);
   }
 };
 
-// delete user
 
-// export const deleteUser = async (req, res) => {
-//   try {
-//     if (req.user.id !== req.params.id && req.user.role !== "admin") {
-//       return res
-//         .status(403)
-//         .json({ message: "You are not authorized to delete this account." });
-//     }
-
-//     await User.findByIdAndDelete(req.params.id);
-//     res.status(200).json({ message: "User has been deleted successfully." });
-//   } catch (error) {
-//     res
-//       .status(500)
-//       .json({ message: "Error deleting user", error: error.message });
-//   }
-// };
 
 export const deleteUser = async (req, res) => {
   try {
