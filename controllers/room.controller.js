@@ -149,6 +149,44 @@ if (Array.isArray(amenities)) {
     });
   }
 };
+
+export const deleteRoomImages = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { indexes } = req.body; // expecting array of numbers (indexes to delete)
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid room ID" });
+    }
+
+    const room = await Room.findById(id);
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    if (!Array.isArray(indexes)) {
+      return res.status(400).json({ message: "Indexes should be an array of numbers" });
+    }
+
+    // Sort indexes descending to avoid messing up positions while deleting
+    const sortedIndexes = indexes.sort((a, b) => b - a);
+
+    // Remove images at specified indexes
+    for (const index of sortedIndexes) {
+      if (index >= 0 && index < room.roomImages.length) {
+        room.roomImages.splice(index, 1);
+      }
+    }
+
+    await room.save();
+
+    res.status(200).json({ message: "Images deleted successfully", data: room.roomImages });
+  } catch (error) {
+    console.error("Error deleting room images:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 // Delete a room
 export const deleteRoom = async (req, res) => {
   try {
@@ -537,8 +575,8 @@ export const getRoomsBookedByUser = async (req, res) => {
     const bookedRooms = await Room.find({ 
       bookedBy: new mongoose.Types.ObjectId(userId) 
     })
-    .populate('bookedBy', 'name email profilePicture') // Include user details
-    .populate('owner', 'name email') // Include owner details
+    .populate('bookedBy', 'username email profilePicture') // Include user details
+    .populate('owner', 'username phone email') // Include owner details
     .sort({ updatedAt: -1 }); // Sort by most recently booked first
 
     if (!bookedRooms || bookedRooms.length === 0) {
@@ -631,3 +669,33 @@ export const getRoomReviews = async (req, res) => {
   }
 };
 
+export const getRoomsOwnedAndBooked = async (req, res) => {
+  try {
+    const { ownerId } = req.params;
+
+    // Validate owner ID
+    if (!mongoose.Types.ObjectId.isValid(ownerId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid owner ID format"
+      });
+    }
+
+    // Find all rooms owned by this user, and populate bookedBy user info
+    const rooms = await Room.find({ owner: ownerId })
+      .populate('bookedBy', 'name username email phone profilePicture')
+      .sort({ updatedAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      message: "Rooms owned by user with booking info",
+      data: rooms
+    });
+  } catch (error) {
+    console.error("Error fetching owned rooms with bookings:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error"
+    });
+  }
+};
