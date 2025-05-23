@@ -23,31 +23,46 @@ export const updateRoom = async (req, res) => {
       coordinates,
       available,
       owner,
-      keepExistingImages = 'true', // Default to keeping existing images
+      keepExistingImages = 'true',
       keepExistingVRImages = 'true'
     } = req.body;
+
+    // Parse amenities to always be an array
+let parsedAmenities = [];
+if (Array.isArray(amenities)) {
+  parsedAmenities = amenities;
+} else if (typeof amenities === "string") {
+  try {
+    parsedAmenities = JSON.parse(amenities);
+  } catch {
+    parsedAmenities = [];
+  }
+}
+
+    // Parse deleted images arrays from form-data (JSON string)
+    const deletedImages = req.body.deletedImages ? JSON.parse(req.body.deletedImages) : [];
+    const deletedVRImages = req.body.deletedVRImages ? JSON.parse(req.body.deletedVRImages) : [];
 
     const files = req.files || {};
     const newRoomImages = files['roomImages'] || [];
     const newVRImages = files['vrImages'] || [];
 
-    // Validate room ID
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Invalid room ID format" 
+        message: "Invalid room ID format"
       });
     }
 
     const existingRoom = await Room.findById(id);
     if (!existingRoom) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Room not found" 
+        message: "Room not found"
       });
     }
 
-    // Process image uploads (only if new files are provided)
+    // Upload new images if provided
     const uploadToCloudinary = async (file, folder) => {
       const result = await cloudinary.uploader.upload(
         `data:${file.mimetype};base64,${file.buffer.toString("base64")}`,
@@ -56,7 +71,6 @@ export const updateRoom = async (req, res) => {
       return result.secure_url;
     };
 
-    // Only upload new images if provided
     let newRoomImageUrls = [];
     if (newRoomImages.length > 0) {
       newRoomImageUrls = await Promise.all(
@@ -71,14 +85,22 @@ export const updateRoom = async (req, res) => {
       );
     }
 
-    // Prepare image arrays (keep old unless explicitly replacing)
+    // Remove deleted images from existing arrays
+    let filteredRoomImages = existingRoom.roomImages.filter(
+      img => !deletedImages.includes(img)
+    );
+    let filteredVRImages = existingRoom.vrImages.filter(
+      img => !deletedVRImages.includes(img)
+    );
+
+    // Prepare final image arrays
     const finalRoomImages = [
-      ...(keepExistingImages === 'true' ? existingRoom.roomImages : []),
+      ...(keepExistingImages === 'true' ? filteredRoomImages : []),
       ...newRoomImageUrls
     ];
 
     const finalVRImages = [
-      ...(keepExistingVRImages === 'true' ? existingRoom.vrImages : []),
+      ...(keepExistingVRImages === 'true' ? filteredVRImages : []),
       ...newVRImageUrls
     ];
 
@@ -96,9 +118,9 @@ export const updateRoom = async (req, res) => {
         faced: faced || existingRoom.faced,
         parking: parking || existingRoom.parking,
         balcony: balcony || existingRoom.balcony,
-        amenities: Array.isArray(amenities) 
-          ? amenities 
-          : (amenities ? amenities.split(',').map(item => item.trim()) : existingRoom.amenities),
+        amenities: parsedAmenities.length > 0
+  ? parsedAmenities.filter(a => a && a.trim() !== "")
+  : existingRoom.amenities,
         description: description || existingRoom.description,
         location: location || existingRoom.location,
         coordinates: coordinates ? {
@@ -154,13 +176,16 @@ export const deleteRoom = async (req, res) => {
 // Get all rooms
 export const getAllRooms = async (req, res) => {
   try {
-    const rooms = await Room.find();
+    // Only fetch rooms where available is true
+    const rooms = await Room.find({ available: true });
     res.status(200).json(rooms);
   } catch (error) {
     console.error("Error fetching rooms:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
 
 // Get a single room by ID
 export const getRoomById = async (req, res) => {
@@ -205,6 +230,18 @@ export const createRooms = async (req, res) => {
       coordinates,
       owner
     } = req.body;
+
+    // Parse amenities to always be an array
+    let parsedAmenities = [];
+    if (Array.isArray(amenities)) {
+      parsedAmenities = amenities;
+    } else if (typeof amenities === "string") {
+      try {
+        parsedAmenities = JSON.parse(amenities);
+      } catch {
+        parsedAmenities = [];
+      }
+    }
 
     console.log(req.body)
     console.log(req.files)
@@ -314,9 +351,9 @@ export const createRooms = async (req, res) => {
       faced,
       parking, // Keep as string since schema expects enum values
       balcony,
-      amenities: Array.isArray(amenities) 
-        ? amenities 
-        : (amenities ? amenities.split(',').map(item => item.trim()) : []),
+    
+      amenities: parsedAmenities.filter(a => a && a.trim() !== ""), // <--- use parsedAmenities here
+
       description: description || "",
       location,
       coordinates: {
@@ -405,7 +442,9 @@ export const SearchRoom = async (req, res) => {
   try {
     const { price, minBudget, maxBudget, location, bedrooms, category } = req.query;
 
-    const searchCriteria = {};
+    const searchCriteria = {
+            available: true 
+    };
 
     // Price range support
     if (minBudget && maxBudget) {

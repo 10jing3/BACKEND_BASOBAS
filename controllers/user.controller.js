@@ -27,6 +27,7 @@ export const updateUser = async (req, res, next) => {
       profilePicture: req.body.profilePicture,
       phone: req.body.phone,
       gender: req.body.gender,
+      age: req.body.age,
       budget: req.body.budget,
       cleanliness: req.body.cleanliness,
       isSmoker: req.body.isSmoker,

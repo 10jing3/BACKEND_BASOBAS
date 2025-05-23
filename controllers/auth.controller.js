@@ -6,9 +6,6 @@ import sgMail from "@sendgrid/mail";
 import dotenv from "dotenv";
 dotenv.config(); // Make sure this is only called once in your app (typically in app.js or index.js)
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-console.log("SendGrid API Key:", process.env.SENDGRID_API_KEY);
-console.log(process.env.JWT_SECRET);
 
 export const signup = async (req, res, next) => {
   const { username, email, password } = req.body;
@@ -143,10 +140,7 @@ export const resetPassword = async (req, res) => {
     const hashedPassword = bcrypt.hashSync(newPassword, 10);
     user.password = hashedPassword;
 
-    if (user.cleanliness > 5) {
-      user.cleanliness = 5;
-    }
-
+   
     await user.save();
 
     res.status(200).json({ message: "Password reset successfully." });

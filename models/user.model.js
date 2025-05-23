@@ -32,6 +32,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["male", "female", "other"],
     },
+    age: {
+      type: Number,
+      min: 18,
+      max: 100,
+    },
+    matchingEnabled: { type: Boolean, default: true },
     budget: {
       type: Number,
     },
