@@ -15,6 +15,9 @@ import {
   getAllRoomsAdmin,
   getRoomsOwnedAndBooked,
   removeBooking,
+  getPendingRooms,
+  approveRoom,
+  rejectRoom,
 } from "../controllers/room.controller.js";
 import multer from "multer";
 
@@ -56,5 +59,13 @@ router
   router.get('/owned/bookings/:ownerId', getRoomsOwnedAndBooked);
   router.patch('/remove-booking/:roomId', removeBooking);
   router.get("/admin/rooms", getAllRoomsAdmin);
+ // Get all pending rooms (for admin approval)
+router.get("/pending", getPendingRooms);
+
+// Approve a room
+router.patch("/approve/:id", approveRoom);
+
+// Reject (delete) a room
+router.delete("/reject/:id", rejectRoom);
 
 export default router;

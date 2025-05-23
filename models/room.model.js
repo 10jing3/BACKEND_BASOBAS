@@ -5,7 +5,7 @@ const roomSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
-      unique: true,
+      
     },
     members: [
       {
@@ -87,6 +87,11 @@ const roomSchema = new mongoose.Schema(
       enum: ['yes', 'no', '1', '2'],
       default: 'no'
     },
+    status: {
+  type: String,
+  enum: ["pending", "approved", "rejected"],
+  default: "pending"
+},
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User", // Reference to the User model

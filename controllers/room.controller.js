@@ -61,6 +61,8 @@ if (Array.isArray(amenities)) {
         message: "Room not found"
       });
     }
+    
+
 
     // Upload new images if provided
     const uploadToCloudinary = async (file, folder) => {
@@ -215,7 +217,8 @@ export const deleteRoom = async (req, res) => {
 export const getAllRooms = async (req, res) => {
   try {
     // Only fetch rooms where available is true
-    const rooms = await Room.find({ available: true });
+    // const rooms = await Room.find({ available: true });
+    const rooms = await Room.find({ available: true, status: "approved" });
     res.status(200).json(rooms);
   } catch (error) {
     console.error("Error fetching rooms:", error);
@@ -244,11 +247,11 @@ export const getRoomById = async (req, res) => {
       return res.status(400).json({ message: "Invalid room ID" });
     }
 
-    // Find the room by ID
-    const room = await Room.findById(id);
+    // Find the room by ID and status approved
+    const room = await Room.findOne({ _id: id, status: "approved" });
 
     if (!room) {
-      return res.status(404).json({ message: "Room not found" });
+      return res.status(404).json({ message: "Room not found or not approved" });
     }
 
     res.status(200).json(room);
@@ -444,16 +447,18 @@ export const getRoomsByOwner = async (req, res) => {
       });
     }
 
-    // Find rooms with pagination
+    // Find rooms with pagination, only status: "approved"
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
+    const query = { owner: ownerId, status: "approved" };
+
     const [rooms, total] = await Promise.all([
-      Room.find({ owner: ownerId })
+      Room.find(query)
         .skip(skip)
         .limit(Number(limit))
         .lean(),
-      Room.countDocuments({ owner: ownerId })
+      Room.countDocuments(query)
     ]);
 
     if (!rooms || rooms.length === 0) {
@@ -723,5 +728,36 @@ export const removeBooking = async (req, res) => {
     return res.status(200).json({ success: true, room: updatedRoom });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getPendingRooms = async (req, res) => {
+  try {
+    const rooms = await Room.find({ status: "pending" });
+    res.status(200).json(rooms);
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Approve
+export const approveRoom = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const room = await Room.findByIdAndUpdate(id, { status: "approved" }, { new: true });
+    res.status(200).json(room);
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Reject/Delete
+export const rejectRoom = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Room.findByIdAndDelete(id);
+    res.status(200).json({ message: "Room deleted" });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
   }
 };
