@@ -223,6 +223,15 @@ export const getAllRooms = async (req, res) => {
   }
 };
 
+export const getAllRoomsAdmin = async (req, res) => {
+  try {
+    const rooms = await Room.find({});
+    res.status(200).json(rooms);
+  } catch (error) {
+    console.error("Error fetching rooms:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 
 // Get a single room by ID
@@ -697,5 +706,22 @@ export const getRoomsOwnedAndBooked = async (req, res) => {
       success: false,
       message: error.message || "Internal server error"
     });
+  }
+};
+
+export const removeBooking = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const updatedRoom = await Room.findByIdAndUpdate(
+      roomId,
+      { $unset: { bookedBy: "" } }, // Remove the bookedBy field
+      { new: true }
+    );
+    if (!updatedRoom) {
+      return res.status(404).json({ success: false, message: "Room not found" });
+    }
+    return res.status(200).json({ success: true, room: updatedRoom });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
