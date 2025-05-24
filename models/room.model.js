@@ -142,35 +142,10 @@ const reviewSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const bookingSchema = new mongoose.Schema(
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    room: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Room",
-    },
-    startDate: {
-      type: Date,
-    },
-    endDate: {
-      type: Date,
-    },
-    paymentStatus: {
-      type: String,
-      enum: ["Pending", "Completed"],
-      default: "Pending",
-    },
-  },
-  { timestamps: true }
-);
 
-const Booking = mongoose.model("Booking", bookingSchema);
+
 const Review = mongoose.model("Review", reviewSchema)
 const Room = mongoose.model("Room", roomSchema);
 
 export default Room;
-export { Booking,Review
- };
+export { Review};
