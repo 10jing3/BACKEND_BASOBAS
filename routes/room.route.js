@@ -46,6 +46,7 @@ router
     upload.fields([
       { name: "roomImages", maxCount: 5 },
       { name: "vrImages", maxCount: 5 },
+  { name: 'documentImages', maxCount: 10 }
     ]),
     createRooms
   );

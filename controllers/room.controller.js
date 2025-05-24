@@ -155,10 +155,14 @@ if (Array.isArray(amenities)) {
 export const deleteRoomImages = async (req, res) => {
   try {
     const { id } = req.params;
-    const { indexes } = req.body; // expecting array of numbers (indexes to delete)
+    const { indexes, type } = req.body; // type: "roomImages" or "vrImages"
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid room ID" });
+    }
+
+    if (!["roomImages", "vrImages"].includes(type)) {
+      return res.status(400).json({ message: "Invalid image type" });
     }
 
     const room = await Room.findById(id);
@@ -173,16 +177,22 @@ export const deleteRoomImages = async (req, res) => {
     // Sort indexes descending to avoid messing up positions while deleting
     const sortedIndexes = indexes.sort((a, b) => b - a);
 
-    // Remove images at specified indexes
+    // Remove images at specified indexes from the correct array
     for (const index of sortedIndexes) {
-      if (index >= 0 && index < room.roomImages.length) {
+      if (type === "roomImages" && index >= 0 && index < room.roomImages.length) {
         room.roomImages.splice(index, 1);
+      }
+      if (type === "vrImages" && index >= 0 && index < room.vrImages.length) {
+        room.vrImages.splice(index, 1);
       }
     }
 
     await room.save();
 
-    res.status(200).json({ message: "Images deleted successfully", data: room.roomImages });
+    res.status(200).json({ 
+      message: "Images deleted successfully", 
+      data: type === "roomImages" ? room.roomImages : room.vrImages 
+    });
   } catch (error) {
     console.error("Error deleting room images:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -228,7 +238,7 @@ export const getAllRooms = async (req, res) => {
 
 export const getAllRoomsAdmin = async (req, res) => {
   try {
-    const rooms = await Room.find({});
+    const rooms = await Room.find({status: "approved"});
     res.status(200).json(rooms);
   } catch (error) {
     console.error("Error fetching rooms:", error);
@@ -293,9 +303,6 @@ export const createRooms = async (req, res) => {
       }
     }
 
-    console.log(req.body)
-    console.log(req.files)
-
     // Validate required fields
     const requiredFields = {
       name: "Name",
@@ -334,28 +341,34 @@ export const createRooms = async (req, res) => {
         parsedCoordinates = typeof coordinates === 'string' 
           ? JSON.parse(coordinates) 
           : coordinates;
-        
         if (isNaN(parsedCoordinates.lat)) parsedCoordinates.lat = 0;
         if (isNaN(parsedCoordinates.lng)) parsedCoordinates.lng = 0;
       } catch (error) {
         console.error("Error parsing coordinates:", error);
-        // Continue with default coordinates
       }
     }
 
     // Handle file uploads
+
     const files = req.files || {};
     const roomImages = files['roomImages'] || [];
     const vrImages = files['vrImages'] || [];
-    
-    // Validate at least one room image
+    const documentImages = files['documentImages'] || [];
+
+    // Validate at least one room image and one document image
     if (!roomImages || roomImages.length === 0) {
       return res.status(400).json({ 
         success: false,
         message: "At least one room image is required" 
       });
     }
-    
+    if (!documentImages || documentImages.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: "At least one document image is required" 
+      });
+    }
+
     // Upload images to Cloudinary with error handling
     const uploadToCloudinary = async (file, folder) => {
       try {
@@ -369,12 +382,12 @@ export const createRooms = async (req, res) => {
         throw new Error(`Failed to upload ${folder} image`);
       }
     };
-    
+
     // Process room images
     const roomImageUrls = await Promise.all(
       roomImages.map(file => uploadToCloudinary(file, "room_images"))
     );
-    
+
     // Process VR images (optional)
     let vrImageUrls = [];
     if (vrImages.length > 0) {
@@ -384,9 +397,14 @@ export const createRooms = async (req, res) => {
         );
       } catch (error) {
         console.error("VR image upload failed:", error);
-        vrImageUrls = []; // Continue without VR images
+        vrImageUrls = [];
       }
     }
+
+    // Process document images
+    const documentImageUrls = await Promise.all(
+      documentImages.map(file => uploadToCloudinary(file, "room_documents"))
+    );
 
     // Create new room document
     const newRoom = new Room({
@@ -395,15 +413,13 @@ export const createRooms = async (req, res) => {
       size: Number(size),
       category,
       location,
-      bedrooms, // Keep as string since schema expects enum values
-      bathrooms, // Keep as string since schema expects enum values
-      kitchen, // Keep as string since schema expects enum values
+      bedrooms,
+      bathrooms,
+      kitchen,
       faced,
-      parking, // Keep as string since schema expects enum values
+      parking,
       balcony,
-    
-      amenities: parsedAmenities.filter(a => a && a.trim() !== ""), // <--- use parsedAmenities here
-
+      amenities: parsedAmenities.filter(a => a && a.trim() !== ""),
       description: description || "",
       location,
       coordinates: {
@@ -412,6 +428,7 @@ export const createRooms = async (req, res) => {
       },
       roomImages: roomImageUrls,
       vrImages: vrImageUrls,
+      documentImages: documentImageUrls, // <-- Save document image URLs
       owner: new mongoose.Types.ObjectId(owner),
     });
 
@@ -434,7 +451,6 @@ export const createRooms = async (req, res) => {
     });
   }
 };
-
 export const getRoomsByOwner = async (req, res) => {
   try {
     const ownerId = req.params.ownerId;

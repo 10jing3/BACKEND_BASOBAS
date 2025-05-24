@@ -46,6 +46,9 @@ const roomSchema = new mongoose.Schema(
     vrImages: {
       type: [String],
     },
+    documentImages: {
+      type: [String],
+    },
     description: {
       type: String,
     },
@@ -53,7 +56,7 @@ const roomSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Category is required'],
       enum: {
-        values: ['single room', 'two room', '2 BHK', '4 BHK', 'flat', 'house'],
+        values: ['single room', 'two room', '2 BHK', '3 BHK', '4 BHK', 'flat', 'house'],
         message: 'Please select a valid category'
       }
     },
@@ -64,7 +67,7 @@ const roomSchema = new mongoose.Schema(
     },
     bathrooms: {
       type: String,
-      enum: ['1', '2', '3'],
+      enum: ['1', '2', '3', '4+'],
       default: '1'
     },
     kitchen: {
@@ -79,12 +82,12 @@ const roomSchema = new mongoose.Schema(
     },
     parking: {
       type: String,
-      enum: ['yes', 'no', 'covered', 'open'],
+      enum: ['yes', 'no'], 
       default: 'no'
     },
     balcony: {
       type: String,
-      enum: ['yes', 'no', '1', '2'],
+      enum: ['yes', 'no'],
       default: 'no'
     },
     status: {
