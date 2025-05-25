@@ -2,6 +2,8 @@ import Room, { Review } from "../models/room.model.js";
 import mongoose, { get } from "mongoose";
 import cloudinary from "./../config/cloudinary.config.js";
 import { getUserName } from "./user.controller.js";
+// Import the email utility
+import transporter from "../utils/email.js";
 
 export const updateRoom = async (req, res) => {
   try {
@@ -756,24 +758,58 @@ export const getPendingRooms = async (req, res) => {
   }
 };
 
-// Approve
+
+
 export const approveRoom = async (req, res) => {
   try {
     const { id } = req.params;
-    const room = await Room.findByIdAndUpdate(id, { status: "approved" }, { new: true });
+    // Find the room and update status to approved
+    const room = await Room.findByIdAndUpdate(
+      id,
+      { status: "approved" },
+      { new: true }
+    ).populate("owner");
+    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (room.status !== "approved") {
+      return res.status(400).json({ message: "Room is not approved" });
+    }
+    // Send approval email to owner
+    if (room.owner && room.owner.email) {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: room.owner.email,
+        subject: "Your Room Has Been Approved",
+        text: `Hello ${room.owner.name || room.owner.username || ""},\n\nYour room "${room.name}" has been approved and is now live on BASOBAS.\n\nThank you!`,
+      });
+    }
     res.status(200).json(room);
   } catch (error) {
+    console.error("Error in approveRoom:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-// Reject/Delete
+// Reject Room (DELETE /api/room/reject/:id)
 export const rejectRoom = async (req, res) => {
   try {
     const { id } = req.params;
+    const room = await Room.findById(id).populate("owner");
+    if (!room) return res.status(404).json({ message: "Room not found" });
+
+    // Send rejection email to owner
+    if (room.owner && room.owner.email) {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: room.owner.email,
+        subject: "Your Room Listing Was Rejected",
+        text: `Hello ${room.owner.name || room.owner.username || ""},\n\nWe're sorry, but your room "${room.name}" was not approved and has been removed from BASOBAS.\n\nIf you have questions, please contact support.`,
+      });
+    }
+
     await Room.findByIdAndDelete(id);
     res.status(200).json({ message: "Room deleted" });
   } catch (error) {
+    console.error("Error in rejectRoom:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

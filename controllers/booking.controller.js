@@ -138,3 +138,25 @@ export const deleteBooking = async (req, res, next) => {
     next(err);
   }
 };
+
+export const markBookingPaid = async (req, res) => {
+  try {
+    const { roomId, userId } = req.body;
+    // Find the latest booking for this room and user with pending payment
+    const booking = await Booking.findOneAndUpdate(
+      { room: roomId, user: userId, paymentStatus: "pending" },
+      { paymentStatus: "paid" },
+      { new: true }
+    );
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found or already paid." });
+    }
+
+    // Set the room as unavailable after payment
+    await Room.findByIdAndUpdate(roomId, { available: false });
+
+    res.json({ message: "Payment status updated to paid.", booking });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+}
