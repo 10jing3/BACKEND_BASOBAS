@@ -1,5 +1,7 @@
 import Booking from "../models/booking.model.js";
 import Room from "../models/room.model.js";
+import transporter from "../utils/email.js";
+import User from "../models/user.model.js";
 
 // Create a booking request (user -> owner)
 export const createBookingRequest = async (req, res, next) => {
@@ -61,24 +63,38 @@ export const getUserRequests = async (req, res, next) => {
     const { userId } = req.query;
     if (!userId) return res.status(400).json({ message: "userId is required" });
 
-    const bookings = await Booking.find({ user: userId });
+    const bookings = await Booking.find({ user: userId })
+      .populate("room")
+      .populate("owner", "username phone email");
     res.json(bookings);
   } catch (err) {
     next(err);
   }
 };
 
+
 // Accept a booking request
 export const acceptBooking = async (req, res, next) => {
   try {
     const { ownerId } = req.body;
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id).populate("user").populate("room");
     if (!booking) return res.status(404).json({ message: "Booking not found" });
     if (booking.owner.toString() !== ownerId)
       return res.status(403).json({ message: "Not authorized" });
 
     booking.status = "accepted";
     await booking.save();
+
+    // Send email notification
+    if (booking.user?.email) {
+      await transporter.sendMail({
+        from: "your_email@gmail.com",
+        to: booking.user.email,
+        subject: "Your Booking Request Was Accepted",
+        text: `Hi ${booking.user.name || booking.user.username || "User"},\n\nYour booking request for room "${booking.room.name}" has been accepted!`,
+      });
+    }
+
     res.json({ message: "Booking accepted", booking });
   } catch (err) {
     next(err);
@@ -89,7 +105,7 @@ export const acceptBooking = async (req, res, next) => {
 export const declineBooking = async (req, res, next) => {
   try {
     const { ownerId } = req.body;
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id).populate("user").populate("room");
     if (!booking) return res.status(404).json({ message: "Booking not found" });
     if (booking.owner.toString() !== ownerId)
       return res.status(403).json({ message: "Not authorized" });
@@ -97,9 +113,28 @@ export const declineBooking = async (req, res, next) => {
     booking.status = "declined";
     booking.paymentStatus = "cancelled";
     await booking.save();
+
+    // Send email notification
+    if (booking.user?.email) {
+      await transporter.sendMail({
+        from: "your_email@gmail.com",
+        to: booking.user.email,
+        subject: "Your Booking Request Was Declined",
+        text: `Hi ${booking.user.name || booking.user.username || "User"},\n\nYour booking request for room "${booking.room.name}" has been declined.`,
+      });
+    }
+
     res.json({ message: "Booking declined", booking });
   } catch (err) {
     next(err);
   }
 };
 
+export const deleteBooking = async (req, res, next) => {
+  try {
+    await Booking.findByIdAndDelete(req.params.id);
+    res.json({ message: "Booking deleted" });
+  } catch (err) {
+    next(err);
+  }
+};

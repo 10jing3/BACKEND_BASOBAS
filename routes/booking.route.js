@@ -5,10 +5,11 @@ import {
   acceptBooking,
   declineBooking,
   getUserRequests,
+  deleteBooking,
 } from "../controllers/booking.controller.js";
 
 const router = express.Router();
-
+router.delete("/:id", deleteBooking);
 router.post("/request", createBookingRequest);
 router.get("/owner-requests", getOwnerRequests);
 router.post("/accept/:id", acceptBooking);
