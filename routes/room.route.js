@@ -58,7 +58,7 @@ router
   router.post("/createreview/:roomId", createReview);
   router.post("/delete-images/:id", deleteRoomImages);
   router.get('/owned/bookings/:ownerId', getRoomsOwnedAndBooked);
-  router.patch('/remove-booking/:roomId', removeBooking);
+  router.patch("/remove-booking/:bookingId", removeBooking);
   router.get("/admin/rooms", getAllRoomsAdmin);
  // Get all pending rooms (for admin approval)
 router.get("/pending", getPendingRooms);

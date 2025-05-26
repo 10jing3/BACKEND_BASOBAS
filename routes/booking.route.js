@@ -7,6 +7,7 @@ import {
   getUserRequests,
   deleteBooking,
   markBookingPaid,
+  getOwnerAcceptedRooms,
 } from "../controllers/booking.controller.js";
 
 const router = express.Router();
@@ -17,5 +18,6 @@ router.post("/accept/:id", acceptBooking);
 router.post("/decline/:id", declineBooking);
 router.get("/my-requests", getUserRequests);
 router.post("/mark-paid", markBookingPaid);
+router.get("/owned/accepted/:ownerId", getOwnerAcceptedRooms);
 
 export default router;

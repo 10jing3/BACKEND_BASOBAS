@@ -1,5 +1,6 @@
 import Room, { Review } from "../models/room.model.js";
 import mongoose, { get } from "mongoose";
+import Booking from "../models/booking.model.js";
 import cloudinary from "./../config/cloudinary.config.js";
 import { getUserName } from "./user.controller.js";
 // Import the email utility
@@ -567,7 +568,7 @@ export const updateRoomStatus = async (req, res) => {
       id,
       {
         available,
-        bookedBy: userId
+        
       },
       {
         new: true,
@@ -732,23 +733,32 @@ export const getRoomsOwnedAndBooked = async (req, res) => {
   }
 };
 
+// Remove a booking by booking ID (for room owner)
 export const removeBooking = async (req, res) => {
   try {
-    const { roomId } = req.params;
-    const updatedRoom = await Room.findByIdAndUpdate(
-      roomId,
-      { $unset: { bookedBy: "" } }, // Remove the bookedBy field
-      { new: true }
-    );
-    if (!updatedRoom) {
-      return res.status(404).json({ success: false, message: "Room not found" });
+    const bookingId = req.params.bookingId; // <-- Use bookingId from params
+
+    // Find the booking
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found." });
     }
-    return res.status(200).json({ success: true, room: updatedRoom });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+
+    // Optionally: Check if the current user is the owner of the room
+    // (Assuming req.user is set by auth middleware)
+    // const room = await Room.findById(booking.room);
+    // if (!room || room.owner.toString() !== req.user.id) {
+    //   return res.status(403).json({ message: "Not authorized." });
+    // }
+
+    // Remove the booking
+    await Booking.findByIdAndDelete(bookingId);
+
+    res.json({ success: true, message: "Booking removed successfully." });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to remove booking." });
   }
 };
-
 export const getPendingRooms = async (req, res) => {
   try {
     const rooms = await Room.find({ status: "pending" });
@@ -779,7 +789,7 @@ export const approveRoom = async (req, res) => {
         from: process.env.EMAIL_USER,
         to: room.owner.email,
         subject: "Your Room Has Been Approved",
-        text: `Hello ${room.owner.name || room.owner.username || ""},\n\nYour room "${room.name}" has been approved and is now live on BASOBAS.\n\nThank you!`,
+       text: `Hello ${room.owner.name || room.owner.username || ""},\n\nYour room "${room.name}" has been approved and is now live on BASOBAS.\n\nPlease go to 'My Rooms' in your dashboard to manage your room.\n\nThank you!`,
       });
     }
     res.status(200).json(room);
